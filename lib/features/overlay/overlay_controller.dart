@@ -65,9 +65,15 @@ class OverlayController extends ChangeNotifier {
 
   Future<void> _initSystemTray(VoidCallback onToggleRequested) async {
     try {
+      var iconPath = 'windows/runner/resources/app_icon.ico';
+      final devIcon = File('windows/runner/resources/app_icon.ico');
+      if (devIcon.existsSync()) {
+        iconPath = devIcon.absolute.path;
+      }
+
       await _systemTray.initSystemTray(
         title: "AirP2P",
-        iconPath: '', // Will use default application icon on Windows
+        iconPath: iconPath,
       );
 
       final menu = Menu();
