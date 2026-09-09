@@ -79,7 +79,7 @@ class OverlayController extends ChangeNotifier {
       final menu = Menu();
       await menu.buildFrom([
         MenuItemLabel(
-          label: 'Show AirP2P (Win + Q)',
+          label: 'Show AirP2P (Alt + Q)',
           onClicked: (menuItem) => showOverlay(),
         ),
         MenuItemLabel(
@@ -114,23 +114,23 @@ class OverlayController extends ChangeNotifier {
     try {
       await hotKeyManager.unregisterAll();
 
-      // Win + Q hotkey
+      // Alt + Q hotkey
       final hotKey = HotKey(
         key: LogicalKeyboardKey.keyQ,
-        modifiers: [HotKeyModifier.meta],
+        modifiers: [HotKeyModifier.alt],
         scope: HotKeyScope.system,
       );
 
       await hotKeyManager.register(
         hotKey,
         keyDownHandler: (hotKey) {
-          debugPrint('[OverlayController] Hotkey Win + Q triggered');
+          debugPrint('[OverlayController] Hotkey Alt + Q triggered');
           toggleOverlay();
         },
       );
-      debugPrint('[OverlayController] Global hotkey Win + Q registered');
+      debugPrint('[OverlayController] Global hotkey Alt + Q registered');
     } catch (e) {
-      debugPrint('[OverlayController] Failed to register Win+Q hotkey: $e');
+      debugPrint('[OverlayController] Failed to register Alt+Q hotkey: $e');
     }
   }
 

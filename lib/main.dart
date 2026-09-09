@@ -42,7 +42,7 @@ void main() async {
     }
   }
 
-  // Windows Desktop OS Integration (System Tray + Win + Q hotkey + Acrylic)
+  // Windows Desktop OS Integration (System Tray + Alt + Q hotkey + Acrylic)
   if (Platform.isWindows) {
     await OverlayController().initialize(
       onToggleRequested: () => OverlayController().toggleOverlay(),
