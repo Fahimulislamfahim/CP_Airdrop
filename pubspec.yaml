@@ -1,0 +1,46 @@
+name: airp2p
+description: "Local AirDrop-Style Cross-Platform P2P Engine"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Discovery & Network
+  bonsoir: ^5.0.0
+  network_info_plus: ^5.0.0
+
+  # Desktop OS Shell & Effects
+  window_manager: ^0.3.9
+  flutter_acrylic: ^1.1.4
+  hotkey_manager: ^0.2.3
+  system_tray: ^2.0.3
+
+  # File Ops & UI Interaction
+  file_picker: ^8.0.0
+  desktop_drop: ^0.4.4
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  permission_handler: ^11.3.0
+
+  # Visual Polish & Helpers
+  lottie: ^3.1.0
+  crypto: ^3.0.3
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/animations/
+    - assets/icons/
