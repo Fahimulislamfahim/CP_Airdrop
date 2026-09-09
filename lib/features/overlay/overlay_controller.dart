@@ -23,9 +23,11 @@ class OverlayController extends ChangeNotifier {
 
     // 1. Configure Window Styling & Acrylic Effect
     try {
+      debugPrint('[OverlayController] Step 1: setAsFrameless');
       await windowManager.setAsFrameless();
+      debugPrint('[OverlayController] Step 2: setAlwaysOnTop');
       await windowManager.setAlwaysOnTop(true);
-      await windowManager.setSkipTaskbar(false);
+      debugPrint('[OverlayController] Step 3: Window.setEffect');
       try {
         await Window.setEffect(
           effect: WindowEffect.acrylic,
@@ -34,8 +36,11 @@ class OverlayController extends ChangeNotifier {
       } catch (e) {
         debugPrint('[OverlayController] Acrylic effect fallback: $e');
       }
+      debugPrint('[OverlayController] Step 5: maximize');
       await windowManager.maximize();
+      debugPrint('[OverlayController] Step 6: show');
       await windowManager.show();
+      debugPrint('[OverlayController] Step 7: focus');
       await windowManager.focus();
       _isVisible = true;
       notifyListeners();

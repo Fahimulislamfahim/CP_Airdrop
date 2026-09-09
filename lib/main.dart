@@ -48,29 +48,26 @@ void main() async {
   await transferManager.start();
   await mdnsService.start();
 
-  // Windows Desktop OS Integration (System Tray + Hotkeys + Acrylic)
-  if (Platform.isWindows) {
-    await windowManager.ensureInitialized();
-    await Window.initialize();
-
-    const windowOptions = WindowOptions(
-      center: true,
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.hidden,
-      alwaysOnTop: true,
-    );
-
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await OverlayController().initialize(
-        onToggleRequested: () => OverlayController().toggleOverlay(),
-      );
-    });
-  }
-
   runApp(AirP2PApp(
     peerRegistry: peerRegistry,
     transferManager: transferManager,
     selfName: selfName,
   ));
+
+  // Windows Desktop OS Integration (System Tray + Hotkeys + Acrylic)
+  if (Platform.isWindows) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Allow native Win32 window handle (HWND) to be fully created by the runner
+        await Future.delayed(const Duration(milliseconds: 600));
+        await windowManager.ensureInitialized();
+        await Window.initialize();
+        await OverlayController().initialize(
+          onToggleRequested: () => OverlayController().toggleOverlay(),
+        );
+      } catch (e) {
+        debugPrint('[Main] Windows desktop initialization error: $e');
+      }
+    });
+  }
 }
