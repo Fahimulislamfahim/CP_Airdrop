@@ -3,7 +3,9 @@ import 'package:airp2p/core/discovery/peer_registry.dart';
 import 'package:airp2p/core/models/peer.dart';
 import 'package:airp2p/core/models/transfer.dart';
 import 'package:airp2p/core/utils/checksum.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 
 void main() {
   group('ChecksumUtils Tests', () {

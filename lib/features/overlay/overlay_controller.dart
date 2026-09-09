@@ -12,7 +12,7 @@ class OverlayController extends ChangeNotifier {
   OverlayController._internal();
 
   final SystemTray _systemTray = SystemTray();
-  bool _isVisible = false;
+  bool _isVisible = true;
   bool _isInitialized = false;
 
   bool get isVisible => _isVisible;
@@ -21,65 +21,77 @@ class OverlayController extends ChangeNotifier {
     if (!Platform.isWindows || _isInitialized) return;
     _isInitialized = true;
 
+    // 1. Configure Window Styling & Acrylic Effect
     try {
-      // 1. Initialize Window Manager
-      await windowManager.ensureInitialized();
-      await Window.initialize();
-
-      // Configure window geometry and transparency
-      await windowManager.waitUntilReadyToShow(
-        const WindowOptions(
-          center: true,
-          backgroundColor: Colors.transparent,
-          skipTaskbar: false,
-          titleBarStyle: TitleBarStyle.hidden,
-          alwaysOnTop: true,
-        ),
-        () async {
-          await windowManager.setAsFrameless();
-          try {
-            await Window.setEffect(
-              effect: WindowEffect.acrylic,
-              color: const Color(0xCC0A0F1D),
-            );
-          } catch (e) {
-            debugPrint('[OverlayController] Acrylic effect fallback: $e');
-          }
-          await windowManager.maximize();
-          await windowManager.show();
-          await windowManager.focus();
-          _isVisible = true;
-          notifyListeners();
-        },
-      );
-
-      // 2. Initialize System Tray
-      await _initSystemTray(onToggleRequested);
-
-      // 3. Register Global Hotkey Win + Q
-      await _registerHotkey(onToggleRequested);
+      await windowManager.setAsFrameless();
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setSkipTaskbar(false);
+      try {
+        await Window.setEffect(
+          effect: WindowEffect.acrylic,
+          color: const Color(0xD90A0F1D),
+        );
+      } catch (e) {
+        debugPrint('[OverlayController] Acrylic effect fallback: $e');
+      }
+      await windowManager.maximize();
+      await windowManager.show();
+      await windowManager.focus();
+      _isVisible = true;
+      notifyListeners();
     } catch (e) {
-      debugPrint('[OverlayController] Initialization error: $e');
+      debugPrint('[OverlayController] Window setup error: $e');
     }
+
+    // 2. Initialize System Tray with bundled assets/icons/app_icon.ico
+    try {
+      await _initSystemTray(onToggleRequested);
+    } catch (e) {
+      debugPrint('[OverlayController] System tray error: $e');
+    }
+
+    // 3. Register Global Hotkeys: Alt + Q, F9, Ctrl + Shift + A
+    try {
+      await _registerHotkeys(onToggleRequested);
+    } catch (e) {
+      debugPrint('[OverlayController] Hotkeys error: $e');
+    }
+
+    // 4. In-App Key Handler as resilient backup
+    HardwareKeyboard.instance.addHandler((event) {
+      if (event is KeyDownEvent) {
+        final isAltQ = HardwareKeyboard.instance.isAltPressed &&
+            event.logicalKey == LogicalKeyboardKey.keyQ;
+        final isF9 = event.logicalKey == LogicalKeyboardKey.f9;
+        final isCtrlShiftA = HardwareKeyboard.instance.isControlPressed &&
+            HardwareKeyboard.instance.isShiftPressed &&
+            event.logicalKey == LogicalKeyboardKey.keyA;
+
+        if (isAltQ || isF9 || isCtrlShiftA) {
+          debugPrint('[OverlayController] In-app hotkey detected');
+          toggleOverlay();
+          return true;
+        }
+      }
+      return false;
+    });
   }
 
   Future<void> _initSystemTray(VoidCallback onToggleRequested) async {
     try {
-      var iconPath = 'windows/runner/resources/app_icon.ico';
-      final devIcon = File('windows/runner/resources/app_icon.ico');
-      if (devIcon.existsSync()) {
-        iconPath = devIcon.absolute.path;
-      }
+      const iconPath = 'assets/icons/app_icon.ico';
+      debugPrint('[OverlayController] Initializing system tray with asset: $iconPath');
 
       await _systemTray.initSystemTray(
         title: "AirP2P",
         iconPath: iconPath,
+        toolTip: "AirP2P Local File Sharing (Alt+Q / F9)",
       );
 
       final menu = Menu();
       await menu.buildFrom([
         MenuItemLabel(
-          label: 'Show AirP2P (Alt + Q)',
+          label: 'Show AirP2P (Alt + Q / F9)',
           onClicked: (menuItem) => showOverlay(),
         ),
         MenuItemLabel(
@@ -99,50 +111,76 @@ class OverlayController extends ChangeNotifier {
       await _systemTray.setContextMenu(menu);
 
       _systemTray.registerSystemTrayEventHandler((eventName) {
-        if (eventName == kSystemTrayEventClick) {
+        if (eventName == kSystemTrayEventClick ||
+            eventName == kSystemTrayEventDoubleClick) {
           toggleOverlay();
         } else if (eventName == kSystemTrayEventRightClick) {
           _systemTray.popUpContextMenu();
         }
       });
+      debugPrint('[OverlayController] System tray initialized successfully');
     } catch (e) {
       debugPrint('[OverlayController] System tray error: $e');
     }
   }
 
-  Future<void> _registerHotkey(VoidCallback onToggleRequested) async {
+  Future<void> _registerHotkeys(VoidCallback onToggleRequested) async {
     try {
       await hotKeyManager.unregisterAll();
 
-      // Alt + Q hotkey
-      final hotKey = HotKey(
+      // Primary: Alt + Q
+      final altQ = HotKey(
         key: LogicalKeyboardKey.keyQ,
         modifiers: [HotKeyModifier.alt],
         scope: HotKeyScope.system,
       );
 
-      await hotKeyManager.register(
-        hotKey,
-        keyDownHandler: (hotKey) {
-          debugPrint('[OverlayController] Hotkey Alt + Q triggered');
-          toggleOverlay();
-        },
+      // Fallback 1: F9 (Single key, zero conflict)
+      final f9 = HotKey(
+        key: LogicalKeyboardKey.f9,
+        modifiers: [],
+        scope: HotKeyScope.system,
       );
-      debugPrint('[OverlayController] Global hotkey Alt + Q registered');
+
+      // Fallback 2: Ctrl + Shift + A
+      final ctrlShiftA = HotKey(
+        key: LogicalKeyboardKey.keyA,
+        modifiers: [HotKeyModifier.control, HotKeyModifier.shift],
+        scope: HotKeyScope.system,
+      );
+
+      for (final hk in [altQ, f9, ctrlShiftA]) {
+        try {
+          await hotKeyManager.register(
+            hk,
+            keyDownHandler: (hotKey) {
+              debugPrint('[OverlayController] System Hotkey ${hotKey.key} triggered!');
+              toggleOverlay();
+            },
+          );
+          debugPrint('[OverlayController] Registered hotkey: ${hk.key?.keyLabel}');
+        } catch (err) {
+          debugPrint('[OverlayController] Could not register ${hk.key}: $err');
+        }
+      }
+
+      debugPrint('[OverlayController] Global hotkeys registered (Alt+Q, F9, Ctrl+Shift+A)');
     } catch (e) {
-      debugPrint('[OverlayController] Failed to register Alt+Q hotkey: $e');
+      debugPrint('[OverlayController] Hotkeys registration error: $e');
     }
   }
 
   Future<void> showOverlay() async {
     if (!Platform.isWindows) return;
     try {
+      await windowManager.restore();
       await windowManager.setAlwaysOnTop(true);
       await windowManager.maximize();
       await windowManager.show();
       await windowManager.focus();
       _isVisible = true;
       notifyListeners();
+      debugPrint('[OverlayController] Overlay shown');
     } catch (e) {
       debugPrint('[OverlayController] Show overlay error: $e');
     }
@@ -151,19 +189,33 @@ class OverlayController extends ChangeNotifier {
   Future<void> hideOverlay() async {
     if (!Platform.isWindows) return;
     try {
-      await windowManager.hide();
+      await windowManager.minimize();
       _isVisible = false;
       notifyListeners();
+      debugPrint('[OverlayController] Overlay hidden');
     } catch (e) {
       debugPrint('[OverlayController] Hide overlay error: $e');
     }
   }
 
-  void toggleOverlay() {
-    if (_isVisible) {
-      hideOverlay();
-    } else {
-      showOverlay();
+  Future<void> toggleOverlay() async {
+    if (!Platform.isWindows) return;
+    try {
+      final isMin = await windowManager.isMinimized();
+      final isVis = await windowManager.isVisible();
+      debugPrint('[OverlayController] toggleOverlay (state: _isVisible=$_isVisible, isVis=$isVis, isMin=$isMin)');
+      if (!isMin && isVis && _isVisible) {
+        await hideOverlay();
+      } else {
+        await showOverlay();
+      }
+    } catch (e) {
+      debugPrint('[OverlayController] toggleOverlay fallback: $e');
+      if (_isVisible) {
+        await hideOverlay();
+      } else {
+        await showOverlay();
+      }
     }
   }
 }

@@ -102,6 +102,14 @@ class MdnsService {
   }
 
   Future<void> _startMdnsDiscovery() async {
+    // On Windows, bonsoir discovery fires platform channel events on a background Win32
+    // worker thread, violating Flutter's platform threading model and causing crashes.
+    // We use the pure-Dart UDP LAN beacon for Windows which runs with zero platform channels.
+    if (Platform.isWindows) {
+      debugPrint('[MdnsService] Using pure-Dart UDP LAN beacon for discovery on Windows');
+      return;
+    }
+
     try {
       _discovery = BonsoirDiscovery(type: serviceType);
       await _discovery!.ready;

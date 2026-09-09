@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/discovery/mdns_service.dart';
@@ -42,16 +44,29 @@ void main() async {
     }
   }
 
-  // Windows Desktop OS Integration (System Tray + Alt + Q hotkey + Acrylic)
-  if (Platform.isWindows) {
-    await OverlayController().initialize(
-      onToggleRequested: () => OverlayController().toggleOverlay(),
-    );
-  }
-
   // Start Discovery and File Transfer TCP servers
   await transferManager.start();
   await mdnsService.start();
+
+  // Windows Desktop OS Integration (System Tray + Hotkeys + Acrylic)
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await Window.initialize();
+
+    const windowOptions = WindowOptions(
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      alwaysOnTop: true,
+    );
+
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await OverlayController().initialize(
+        onToggleRequested: () => OverlayController().toggleOverlay(),
+      );
+    });
+  }
 
   runApp(AirP2PApp(
     peerRegistry: peerRegistry,
